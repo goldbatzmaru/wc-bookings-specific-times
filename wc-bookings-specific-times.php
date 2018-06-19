@@ -353,7 +353,7 @@ if(!class_exists(' WC_Bookings_ST_Ajax')){
 		 */
 		public function __construct() {
 			add_action( 'wp_ajax_wc_bookings_get_specific_times_info', array( $this, 'get_specific_times_info' ), 100);
-			add_action( 'wp_ajax_nopriv_wc_bookings_get_specific_times_info', array( $this, 'get_specific_times_info' , 100) );
+			add_action( 'wp_ajax_nopriv_wc_bookings_get_specific_times_info', array( $this, 'get_specific_times_info'), 100);
 			remove_action('wp_ajax_wc_bookings_calculate_costs', 'calculate_costs');
 			remove_action('wp_ajax_nopriv_wc_bookings_calculate_costs', 'calculate_costs');
 			add_action( 'wp_ajax_wc_bookings_st_calculate_costs', array( $this, 'calculate_costs' ), 100);
