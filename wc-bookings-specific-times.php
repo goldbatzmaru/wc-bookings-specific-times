@@ -441,7 +441,7 @@ if(!class_exists(' WC_Bookings_ST_Ajax')){
 
 //Recalculate Cart prices
 
-add_action( 'woocommerce_before_calculate_totals', 'bookings_recalculate_cart', 10);
+add_action( 'woocommerce_before_calculate_totals', 'bookings_recalculate_cart', 100);
 
 function bookings_recalculate_cart($cart_object) {
 
@@ -452,18 +452,62 @@ function bookings_recalculate_cart($cart_object) {
 			if ( ! is_a( $value['data'], 'WC_Product_Booking' ) ) {
 				return;
 			}
+
 			$_product = $value['data'];
 			$_product_id = $value['product_id'];
 			$_booking = $value['booking'];
 			$_booking_time = $_booking['_time'];
-			$_booking_duration = $_booking['_duration'];
 
+			// Divide Booking duration in half in order to correct for half hour manipulation for Captain Joe
+			$_duration_length = $_product->get_duration();
+			$_duration_unit = $_product->get_duration_unit();
+			$_is_duration_half_hours = ((($_duration_length == 30) && ($_duration_unit == 'minute')) ? true : false);
+			if(!$_is_duration_half_hours){
+				$_booking_duration = $_booking['_duration'];
+			} else {
+				$_booking_duration = $_booking['_duration'] / 2 ;
+			}
+			
 			$specific_time_cost = specific_time_cost( $_product_id, $_booking_time, $_booking_duration);
 
 			$_product->set_price(floatval($specific_time_cost));
+			
  
 	} 
 }
+
+
+add_filter( 'woocommerce_booking_form_get_posted_data', 'filter_booking_form_get_posted_data', 10, 2);
+function filter_booking_form_get_posted_data( $posted_data, $product) {
+
+
+	// Bookings only allows for a specific interval for a product's "block". Since we needed to set products to intervals of 30 minutes to deal with start times that can happen in the middle of an hour, all of our intervals are in 30 minute blocks, which halves our percived hour long blocks. We need to DOUBLE the duration and return that instead.
+
+    ## --- Settings :: New duration --- ##
+	$duration_length = $product->get_duration();
+	$duration_unit = $product->get_duration_unit();
+	$is_duration_half_hours = ((($duration_length == 30) && ($duration_unit == 'minute')) ? true : false);
+
+	if(!$is_duration_half_hours) {
+		return;
+	}
+
+    $new_duration = ($posted_data['_duration'] * 2); // new duration
+
+    ## --- Calculations and changes --- ##
+
+    $half_hour = 1800;
+    $new_end_time   = $posted_data['_start_date'] + ( $half_hour * $new_duration );
+
+    $posted_data['_end_date']   = $new_end_time;
+
+    $posted_data['_duration']   = $new_duration;
+    $posted_data['duration']   = sprintf( _n( '%s minutes', '%s minutes', ($new_duration * 30), 'woocommerce' ), ($new_duration * 30));
+
+    return $posted_data;
+}
+
+
 
 //Redirect to checkout on add to cart
 function redirect_checkout_add_cart( $url ) {
